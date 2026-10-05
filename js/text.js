@@ -142,6 +142,13 @@
     const chars = Array.from(s);
     for (let i = 0; i < chars.length; i++) {
       const ch = chars[i];
+      // 電話號碼整串橫躺（順時針轉 90°），不拆成一格一格。
+      if (o.kind === 'phone' && o.numerals !== 'chinese' && /[0-9+(]/.test(ch)) {
+        const run = chars.slice(i).join('').match(/^[0-9+(][0-9+()\-–\s#~*]*[0-9)]|^[0-9]/)[0];
+        cells.push({ kind: 'rotrun', text: run, adv: Array.from(run).reduce((a, c) => a + m.advance(c), 0) });
+        i += Array.from(run).length - 1;
+        continue;
+      }
       if (ch === ' ' || ch === '\t') {
         cells.push({ kind: 'space', adv: 0.5 });
         continue;
@@ -219,6 +226,18 @@
           items.push({ ch: c.ch, x: ccx - adv / 2, y: ccy + size * (EM_TOP - 0.5), size, rot: 90, cx: ccx, cy: ccy });
         } else {
           items.push({ ch: c.ch, x: cx - adv / 2, y: y + size * EM_TOP, size });
+        }
+      } else if (c.kind === 'rotrun') {
+        // Laid out as a horizontal line, then turned 90° clockwise: each glyph
+        // rotates about its own slot along the column.
+        let u = y;
+        for (const ch of Array.from(c.text)) {
+          const a = m.advance(ch) * size;
+          const ccy = u + a / 2;
+          if (!/\s/.test(ch)) {
+            items.push({ ch, x: cx - a / 2, y: ccy + size * (EM_TOP - 0.5), size, rot: 90, cx, cy: ccy });
+          }
+          u += a;
         }
       } else if (c.kind === 'tcy') {
         // Half-width, side by side: shrink the run (not below 70%) to fit the
