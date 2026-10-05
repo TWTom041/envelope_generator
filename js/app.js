@@ -9,7 +9,7 @@
   const STORAGE_KEY = 'envelope-generator-state-v1';
 
   const DEFAULT_STATE = {
-    version: 2,
+    version: 3,
     paperId: 'A4',
     customPaper: { w: 210, h: 297 },
     margin: 5,
@@ -39,7 +39,7 @@
       closing: '緘',
       phone: '',
     },
-    options: { numerals: 'upright', showFrame: true, showZipBoxes: true, showStamp: true },
+    options: { numerals: 'tcy', showFrame: true, showZipBoxes: true, showStamp: true },
     fontChoice: 'kai', // 'kai' | 'sung' (全字庫) | 'wenkai' | 'upload'
     fallbackFamily: 'kai', // 全字庫 family filling characters 霞鶩文楷/uploaded fonts lack
   };
@@ -77,8 +77,8 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw);
-        // v1 defaulted to converting numbers to 國字; keep Arabic numerals instead.
-        if (!saved.version && saved.options) delete saved.options.numerals;
+        // Earlier versions defaulted to 國字 / upright digits; numbers are now half-width 縱中橫.
+        if (!(saved.version >= 3) && saved.options) delete saved.options.numerals;
         return deepMerge(clone(DEFAULT_STATE), saved);
       }
     } catch (e) {
