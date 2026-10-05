@@ -125,7 +125,9 @@
 
   /**
    * Split text into vertical cells.
-   * opts.numerals: 'chinese' | 'upright' | 'tcy'   (tcy = 縱中橫, ≤3 alnum per cell)
+   * opts.numerals: 'tcy' | 'upright' | 'chinese'
+   *   tcy (縱中橫): numbers are written half-width and horizontally in one cell
+   *   (up to 4 characters per cell; longer runs continue in the next cell).
    * opts.kind: 'address' | 'phone' | 'plain'
    */
   function verticalCells(text, opts, metrics) {
@@ -152,8 +154,11 @@
         let j = i;
         while (j < chars.length && /[0-9A-Za-z]/.test(chars[j])) j++;
         const run = chars.slice(i, j).join('');
-        if (run.length <= 3) cells.push({ kind: 'tcy', text: run, adv: 1 });
-        else for (const c of run) cells.push({ kind: 'char', ch: c, adv: 1 });
+        if (/\d/.test(run) || run.length <= 2) {
+          for (let k = 0; k < run.length; k += 4) cells.push({ kind: 'tcy', text: run.slice(k, k + 4), adv: 1 });
+        } else {
+          for (const c of run) cells.push({ kind: 'char', ch: c, adv: 1 }); // a Latin word stays upright
+        }
         i = j - 1;
         continue;
       }
@@ -216,13 +221,17 @@
           items.push({ ch: c.ch, x: cx - adv / 2, y: y + size * EM_TOP, size });
         }
       } else if (c.kind === 'tcy') {
+        // Half-width, side by side: shrink the run (not below 70%) to fit the
+        // column, then condense horizontally if it is still too wide.
         const chars = Array.from(c.text);
-        const w = chars.reduce((a, ch) => a + m.advance(ch), 0) * size;
-        const sx = Math.min(1, (0.96 * size) / w);
-        let x = cx - (w * sx) / 2;
+        const em = chars.reduce((a, ch) => a + m.advance(ch), 0);
+        const fs = size * Math.max(0.7, Math.min(1, 1.1 / em));
+        const sx = Math.min(1, (1.1 * size) / (em * fs));
+        const baseline = y + cellH / 2 + fs * 0.36; // digits centred in the cell
+        let x = cx - (em * fs * sx) / 2;
         for (const ch of chars) {
-          items.push({ ch, x, y: y + size * EM_TOP, size, sx });
-          x += m.advance(ch) * size * sx;
+          items.push({ ch, x, y: baseline, size: fs, sx });
+          x += m.advance(ch) * fs * sx;
         }
       }
       y += cellH + sp;

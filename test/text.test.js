@@ -31,11 +31,25 @@ test('verticalCells uses vertical punctuation and rotates dashes', () => {
   assert.equal(cells[4].rot, true);
 });
 
-test('tcy groups short digit runs into one cell', () => {
-  const cells = T.verticalCells('12樓1234', { numerals: 'tcy' }, T.approxMetrics);
-  assert.equal(cells[0].kind, 'tcy');
-  assert.equal(cells[0].text, '12');
-  assert.equal(cells.length, 1 + 1 + 4);
+test('tcy writes numbers half-width in one cell, 4 per cell at most', () => {
+  const cells = T.verticalCells('段112號3F之1234567', { numerals: 'tcy' }, T.approxMetrics);
+  assert.deepEqual(
+    cells.map((c) => (c.kind === 'tcy' ? '[' + c.text + ']' : c.ch)).join(''),
+    '段[112]號[3F]之[1234][567]'
+  );
+  const word = T.verticalCells('Taipei', { numerals: 'tcy' }, T.approxMetrics);
+  assert.ok(word.every((c) => c.kind === 'char'));
+});
+
+test('tcy digits sit side by side, centred in the column', () => {
+  const cells = T.verticalCells('112', { numerals: 'tcy' }, T.approxMetrics);
+  const items = T.placeVertical(cells, 50, 0, 10, 0, T.approxMetrics);
+  assert.equal(items.length, 3);
+  assert.ok(items.every((it) => it.y === items[0].y), 'same baseline');
+  assert.ok(items[0].x < items[1].x && items[1].x < items[2].x);
+  const right = items[2].x + T.approxMetrics.advance('2') * items[2].size * items[2].sx;
+  assert.ok(Math.abs((items[0].x + right) / 2 - 50) < 1e-6, 'centred');
+  assert.ok(right - items[0].x <= 11 + 1e-6, 'fits the column');
 });
 
 test('splitColumns respects the column height', () => {
