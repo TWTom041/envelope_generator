@@ -47,6 +47,16 @@
           <label><input type="radio" name="sizeMode" data-key="sizeMode" value="auto"> 自動（最大）</label>
           <label><input type="radio" name="sizeMode" data-key="sizeMode" value="preset"> 常用尺寸</label>
           <label><input type="radio" name="sizeMode" data-key="sizeMode" value="custom"> 自訂</label>
+          <label><input type="radio" name="sizeMode" data-key="sizeMode" value="fill"> 填滿紙張</label>
+        </div>
+        <div class="row" id="fillRow" hidden>
+          <label class="wide">紙張方向
+            <select data-key="fillSheet">
+              <option value="portrait">紙張直放（展開圖填滿直向紙張）</option>
+              <option value="landscape">紙張橫放（展開圖填滿橫向紙張）</option>
+            </select>
+          </label>
+          <p class="hint wide">展開圖會撐滿整張紙（扣除印表機邊界），信封通常會超過標準信函尺寸，郵資以非標準計。</p>
         </div>
         <div class="row" id="presetRow" hidden>
           <label class="wide">常用尺寸

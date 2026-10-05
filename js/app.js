@@ -16,6 +16,7 @@
     orientation: 'vertical',
     mode: 'standard',
     sizeMode: 'auto',
+    fillSheet: 'portrait',
     presetId: 'cho3',
     customSize: { w: 110, l: 220 },
     contentsId: 'none',
@@ -164,6 +165,7 @@
     $('#customPaperRow').hidden = state.paperId !== 'custom';
     $('#presetRow').hidden = state.sizeMode !== 'preset';
     $('#customSizeRow').hidden = state.sizeMode !== 'custom';
+    $('#fillRow').hidden = state.sizeMode !== 'fill';
     $('#autoRow').hidden = state.sizeMode !== 'auto';
     $('#customMarkLabel').hidden = state.mailType !== 'custom';
     updateFontUi();
@@ -310,7 +312,7 @@
   function renderStyleTable() {
     const t = $('#styleTable');
     // sheet.info.perStyle only covers the forced style, so solve for every style here.
-    const all = G.solveLargest({
+    const opts = {
       paper: sheet.paper,
       margin: +state.margin || 0,
       orientation: state.orientation,
@@ -318,7 +320,9 @@
       style: 'auto',
       contents: G.CONTENTS.find((c) => c.id === state.contentsId && c.w) || null,
       maxRatio: +state.maxRatio || 0,
-    }).perStyle;
+      sheet: state.fillSheet,
+    };
+    const all = (state.sizeMode === 'fill' ? G.solveFill(opts) : G.solveLargest(opts)).perStyle;
     let html = '<tr><th>結構</th><th>最大尺寸</th><th></th></tr>';
     for (const id of G.STYLE_IDS) {
       const c = all[id];

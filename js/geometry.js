@@ -387,6 +387,66 @@
   }
 
   /**
+   * 填滿紙張：the envelope whose dieline fills the whole usable sheet, with the
+   * sheet upright ('portrait') or sideways ('landscape'). Postal limits are not
+   * applied (callers report them); the face must keep its orientation, i.e.
+   * 直式 taller than wide and 橫式 wider than tall.
+   * Returns { best, perStyle } like solveLargest.
+   */
+  function solveFill(opts) {
+    const usable = usableArea(opts.paper, opts.margin);
+    const short = Math.min(usable.w, usable.h);
+    const long = Math.max(usable.w, usable.h);
+    const landscape = opts.sheet === 'landscape';
+    const aw = landscape ? long : short; // dieline width available
+    const ah = landscape ? short : long; // dieline height available
+    // Rotated means the dieline is turned 90° relative to the paper as defined.
+    const rotated = (aw > ah) !== (usable.w > usable.h) && usable.w !== usable.h;
+    const styles = !opts.style || opts.style === 'auto' ? STYLE_IDS : [opts.style];
+    // Largest x in [lo, hi] with f(x) <= target (f increasing).
+    const bisect = (f, target, lo, hi) => {
+      if (f(lo) > target) return null;
+      for (let i = 0; i < 60; i++) {
+        const mid = (lo + hi) / 2;
+        if (f(mid) <= target) lo = mid;
+        else hi = mid;
+      }
+      return lo;
+    };
+    const perStyle = {};
+    let best = null;
+    for (const style of styles) {
+      // Width depends mostly on A and height on B; alternate until stable.
+      let A = aw / 2;
+      let B = ah / 2;
+      let ok = true;
+      for (let k = 0; k < 30 && ok; k++) {
+        const nA = bisect((a) => dielineSize(style, a, B).w, aw, 1, aw);
+        const nB = nA === null ? null : bisect((b) => dielineSize(style, nA, b).h, ah, 1, ah);
+        if (nA === null || nB === null) ok = false;
+        else {
+          A = nA;
+          B = nB;
+        }
+      }
+      let cand = null;
+      if (ok) {
+        A = Math.floor(A);
+        B = Math.floor(B);
+        const W = opts.orientation === 'horizontal' ? B : A;
+        const L = opts.orientation === 'horizontal' ? A : B;
+        const size = dielineSize(style, A, B);
+        if (L >= W && W >= 50 && size.w <= aw + 1e-9 && size.h <= ah + 1e-9) {
+          cand = { W, L, style, rotated, size, area: W * L };
+        }
+      }
+      perStyle[style] = cand;
+      if (better(cand, best)) best = cand;
+    }
+    return { best, perStyle };
+  }
+
+  /**
    * Affine matrix [a, b, c, d, e, f] placing the dieline centred on the paper,
    * rotated 90° clockwise when `rotated` (x' = a·x + c·y + e, y' = b·x + d·y + f).
    */
@@ -415,6 +475,7 @@
     contentsThatFit,
     solveLargest,
     fitFixed,
+    solveFill,
     placementMatrix,
     usableArea,
   };

@@ -53,6 +53,11 @@
       contents: contents && contents.w ? contents : null,
       maxRatio: +state.maxRatio || 0,
     };
+    if (state.sizeMode === 'fill') {
+      const solved = G.solveFill(Object.assign({ sheet: state.fillSheet }, base));
+      if (!solved.best) return { error: '這張紙無法用所選的結構填滿，請改選其他展開圖結構或紙張方向。', solved };
+      return { pick: solved.best, solved };
+    }
     const solved = G.solveLargest(base);
     if (state.sizeMode === 'auto') {
       if (!solved.best) {
