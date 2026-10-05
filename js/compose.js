@@ -52,18 +52,16 @@
       style: state.style,
       contents: contents && contents.w ? contents : null,
       maxRatio: +state.maxRatio || 0,
+      sheet: state.sheet || 'auto',
     };
-    if (state.sizeMode === 'fill') {
-      const solved = G.solveFill(Object.assign({ sheet: state.fillSheet }, base));
-      if (!solved.best) return { error: '這張紙無法用所選的結構填滿，請改選其他展開圖結構或紙張方向。', solved };
-      return { pick: solved.best, solved };
-    }
     const solved = G.solveLargest(base);
+    const sheetHint = base.sheet === 'auto' ? '' : '把「紙張方向」改為「自動」、';
     if (state.sizeMode === 'auto') {
       if (!solved.best) {
         return {
-          error:
-            state.mode === 'standard'
+          error: sheetHint
+            ? `這張紙${base.sheet === 'portrait' ? '直放' : '橫放'}放不下${state.mode === 'standard' ? '符合中華郵政標準的' : ''}信封展開圖。請${sheetHint}改用較大的紙張，或減少邊界。`
+            : state.mode === 'standard'
               ? '這張紙放不下符合中華郵政標準的信封展開圖。請改用較大的紙張、減少邊界，或將「規格」改為「不限」。'
               : '這張紙放不下任何信封展開圖，請改用較大的紙張或減少邊界。',
           solved,
@@ -86,7 +84,7 @@
     const pick = G.fitFixed(base, W, L);
     if (!pick) {
       return {
-        error: `${W}×${L} mm 的信封展開圖放不下這張紙（扣除邊界 ${base.margin} mm）。可改用「自動（最大）」或較大的紙張。`,
+        error: `${W}×${L} mm 的信封展開圖放不下這張紙（扣除邊界 ${base.margin} mm）。可改用「自動（最大）」、${sheetHint}或改用較大的紙張。`,
         solved,
       };
     }

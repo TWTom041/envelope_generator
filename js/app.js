@@ -16,7 +16,7 @@
     orientation: 'vertical',
     mode: 'standard',
     sizeMode: 'auto',
-    fillSheet: 'portrait',
+    sheet: 'auto', // 紙張方向: 'auto' | 'portrait' (直放) | 'landscape' (橫放)
     presetId: 'cho3',
     customSize: { w: 110, l: 220 },
     contentsId: 'none',
@@ -80,6 +80,7 @@
         const saved = JSON.parse(raw);
         // Earlier versions defaulted to 國字 / upright digits; numbers are now half-width 縱中橫.
         if (!(saved.version >= 3) && saved.options) delete saved.options.numerals;
+        if (saved.sizeMode === 'fill') saved.sizeMode = 'auto'; // removed mode
         return deepMerge(clone(DEFAULT_STATE), saved);
       }
     } catch (e) {
@@ -165,7 +166,6 @@
     $('#customPaperRow').hidden = state.paperId !== 'custom';
     $('#presetRow').hidden = state.sizeMode !== 'preset';
     $('#customSizeRow').hidden = state.sizeMode !== 'custom';
-    $('#fillRow').hidden = state.sizeMode !== 'fill';
     $('#autoRow').hidden = state.sizeMode !== 'auto';
     $('#customMarkLabel').hidden = state.mailType !== 'custom';
     updateFontUi();
@@ -320,9 +320,9 @@
       style: 'auto',
       contents: G.CONTENTS.find((c) => c.id === state.contentsId && c.w) || null,
       maxRatio: +state.maxRatio || 0,
-      sheet: state.fillSheet,
+      sheet: state.sheet,
     };
-    const all = (state.sizeMode === 'fill' ? G.solveFill(opts) : G.solveLargest(opts)).perStyle;
+    const all = G.solveLargest(opts).perStyle;
     let html = '<tr><th>結構</th><th>最大尺寸</th><th></th></tr>';
     for (const id of G.STYLE_IDS) {
       const c = all[id];
