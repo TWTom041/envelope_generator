@@ -66,3 +66,17 @@ test('wrapH keeps ASCII words together', () => {
   assert.ok(lines.every((l) => !/^\d{1,3}$/.test(l)));
   assert.ok(lines.join('').replace(/\s/g, '').includes('1203'));
 });
+
+test('phone numbers lie sideways as one run in vertical text', () => {
+  const cells = T.verticalCells('電話：0912-345-678', { numerals: 'tcy', kind: 'phone' }, T.approxMetrics);
+  const run = cells.find((c) => c.kind === 'rotrun');
+  assert.equal(run.text, '0912-345-678');
+  assert.equal(cells.filter((c) => c.kind === 'rotrun').length, 1);
+  const items = T.placeVertical([run], 50, 0, 10, 0, T.approxMetrics);
+  assert.equal(items.length, 12);
+  assert.ok(items.every((it) => it.rot === 90 && it.cx === 50));
+  assert.ok(items.every((it, i) => i === 0 || it.cy > items[i - 1].cy), 'reads top to bottom');
+  // 國字 mode still converts digit by digit.
+  const cn = T.verticalCells('0912', { numerals: 'chinese', kind: 'phone' }, T.approxMetrics);
+  assert.deepEqual(cn.map((c) => c.ch).join(''), '〇九一二');
+});
