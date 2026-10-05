@@ -380,7 +380,7 @@
   function layoutFace(orientation, fw, fh, data, opt, metrics) {
     const M = metrics || T.approxMetrics;
     const o = Object.assign(
-      { red: '#c8161d', ink: '#1a1a1a', guide: '#9a9a9a', numerals: 'chinese', showStamp: true, showZipBoxes: true, showFrame: true },
+      { red: '#c8161d', ink: '#1a1a1a', guide: '#9a9a9a', numerals: 'upright', showStamp: true, showZipBoxes: true, showFrame: true },
       opt
     );
     return orientation === 'horizontal' ? layoutHorizontal(fw, fh, data, o, M) : layoutVertical(fw, fh, data, o, M);

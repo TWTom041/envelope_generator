@@ -9,6 +9,7 @@
   const STORAGE_KEY = 'envelope-generator-state-v1';
 
   const DEFAULT_STATE = {
+    version: 2,
     paperId: 'A4',
     customPaper: { w: 210, h: 297 },
     margin: 5,
@@ -38,7 +39,7 @@
       closing: '緘',
       phone: '',
     },
-    options: { numerals: 'chinese', showFrame: true, showZipBoxes: true, showStamp: true },
+    options: { numerals: 'upright', showFrame: true, showZipBoxes: true, showStamp: true },
     fontChoice: 'kai', // 'kai' | 'sung' (全字庫) | 'wenkai' | 'upload'
     fallbackFamily: 'kai', // 全字庫 family filling characters 霞鶩文楷/uploaded fonts lack
   };
@@ -74,7 +75,12 @@
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return deepMerge(clone(DEFAULT_STATE), JSON.parse(raw));
+      if (raw) {
+        const saved = JSON.parse(raw);
+        // v1 defaulted to converting numbers to 國字; keep Arabic numerals instead.
+        if (!saved.version && saved.options) delete saved.options.numerals;
+        return deepMerge(clone(DEFAULT_STATE), saved);
+      }
     } catch (e) {
       /* storage unavailable */
     }

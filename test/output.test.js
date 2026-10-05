@@ -111,3 +111,21 @@ test('fold lines are faint and thin', () => {
   assert.ok(folds.length >= 3);
   assert.ok(folds.every((o) => o.stroke === C.COLORS.fold && o.lw <= 0.15));
 });
+
+test('vertical addresses keep Arabic numerals unless 國字 is chosen', () => {
+  const chars = (numerals) => {
+    const state = Object.assign({}, base, {
+      recipient: Object.assign({}, base.recipient, { address: '臺北市中正區重慶南路一段122號3樓' }),
+      options: Object.assign({}, base.options, { numerals }),
+    });
+    return collectGlyphs(C.buildSheet(state, M).ops)
+      .map((g) => g.ch)
+      .join('');
+  };
+  for (const mode of [undefined, 'upright', 'tcy']) {
+    const s = chars(mode);
+    assert.ok(s.includes('122') || (s.includes('1') && s.includes('2')), String(mode));
+    assert.ok(!s.includes('一二二') && !s.includes('三樓'), String(mode));
+  }
+  assert.ok(chars('chinese').includes('一二二號三樓'));
+});
