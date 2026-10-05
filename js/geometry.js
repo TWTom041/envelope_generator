@@ -301,6 +301,18 @@
     return { w: paper.w - 2 * margin, h: paper.h - 2 * margin };
   }
 
+  /**
+   * Dieline rotations allowed for a sheet orientation:
+   * 'auto' tries both; 'portrait' keeps the sheet upright (long side vertical),
+   * 'landscape' lays it sideways. `rotated` is relative to the paper as defined.
+   */
+  function rotationsFor(paper, sheet) {
+    const upright = paper.w <= paper.h;
+    if (sheet === 'portrait') return [!upright];
+    if (sheet === 'landscape') return [upright];
+    return [false, true];
+  }
+
   function fitsOn(size, avail, rotated) {
     const aw = rotated ? avail.h : avail.w;
     const ah = rotated ? avail.w : avail.h;
@@ -313,6 +325,7 @@
    * opts = {
    *   paper: {w, h}, margin, orientation: 'vertical'|'horizontal',
    *   mode: 'standard'|'free', style: 'auto'|'side'|'pocket'|'fourflap',
+   *   sheet: 'auto'|'portrait'|'landscape' (paper upright, sideways, or either),
    *   contents: {w, l} (optional minimum content size), maxRatio (optional)
    * }
    * Returns { best, perStyle: {styleId: candidate|null} } where
@@ -334,7 +347,7 @@
     let best = null;
     for (const style of styles) {
       let styleBest = null;
-      for (const rotated of [false, true]) {
+      for (const rotated of rotationsFor(opts.paper, opts.sheet)) {
         for (let W = maxW; W >= Math.ceil(minW); W--) {
           const lo = Math.max(Math.ceil(minL), Math.ceil(limits.minRatio * W - 1e-9));
           const hi = Math.min(maxL, Math.floor(maxRatio * W + 1e-9));
@@ -377,73 +390,13 @@
     let best = null;
     for (const style of styles) {
       const size = dielineSize(style, A, B);
-      for (const rotated of [false, true]) {
+      for (const rotated of rotationsFor(opts.paper, opts.sheet)) {
         if (!fitsOn(size, avail, rotated)) continue;
         const cand = { W, L, style, rotated, size, area: W * L, sheetUse: size.w * size.h };
         if (!best || cand.sheetUse < best.sheetUse) best = cand;
       }
     }
     return best;
-  }
-
-  /**
-   * 填滿紙張：the envelope whose dieline fills the whole usable sheet, with the
-   * sheet upright ('portrait') or sideways ('landscape'). Postal limits are not
-   * applied (callers report them); the face must keep its orientation, i.e.
-   * 直式 taller than wide and 橫式 wider than tall.
-   * Returns { best, perStyle } like solveLargest.
-   */
-  function solveFill(opts) {
-    const usable = usableArea(opts.paper, opts.margin);
-    const short = Math.min(usable.w, usable.h);
-    const long = Math.max(usable.w, usable.h);
-    const landscape = opts.sheet === 'landscape';
-    const aw = landscape ? long : short; // dieline width available
-    const ah = landscape ? short : long; // dieline height available
-    // Rotated means the dieline is turned 90° relative to the paper as defined.
-    const rotated = (aw > ah) !== (usable.w > usable.h) && usable.w !== usable.h;
-    const styles = !opts.style || opts.style === 'auto' ? STYLE_IDS : [opts.style];
-    // Largest x in [lo, hi] with f(x) <= target (f increasing).
-    const bisect = (f, target, lo, hi) => {
-      if (f(lo) > target) return null;
-      for (let i = 0; i < 60; i++) {
-        const mid = (lo + hi) / 2;
-        if (f(mid) <= target) lo = mid;
-        else hi = mid;
-      }
-      return lo;
-    };
-    const perStyle = {};
-    let best = null;
-    for (const style of styles) {
-      // Width depends mostly on A and height on B; alternate until stable.
-      let A = aw / 2;
-      let B = ah / 2;
-      let ok = true;
-      for (let k = 0; k < 30 && ok; k++) {
-        const nA = bisect((a) => dielineSize(style, a, B).w, aw, 1, aw);
-        const nB = nA === null ? null : bisect((b) => dielineSize(style, nA, b).h, ah, 1, ah);
-        if (nA === null || nB === null) ok = false;
-        else {
-          A = nA;
-          B = nB;
-        }
-      }
-      let cand = null;
-      if (ok) {
-        A = Math.floor(A);
-        B = Math.floor(B);
-        const W = opts.orientation === 'horizontal' ? B : A;
-        const L = opts.orientation === 'horizontal' ? A : B;
-        const size = dielineSize(style, A, B);
-        if (L >= W && W >= 50 && size.w <= aw + 1e-9 && size.h <= ah + 1e-9) {
-          cand = { W, L, style, rotated, size, area: W * L };
-        }
-      }
-      perStyle[style] = cand;
-      if (better(cand, best)) best = cand;
-    }
-    return { best, perStyle };
   }
 
   /**
@@ -475,8 +428,8 @@
     contentsThatFit,
     solveLargest,
     fitFixed,
-    solveFill,
     placementMatrix,
+    rotationsFor,
     usableArea,
   };
   EG.geometry = api;

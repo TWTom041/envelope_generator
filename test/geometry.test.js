@@ -104,21 +104,22 @@ test('buildDieline outline stays inside its bounding box', () => {
   }
 });
 
-test('填滿紙張 fills the usable sheet in the chosen direction', () => {
-  for (const id of ['A4', 'A3', 'Letter']) {
-    for (const orientation of ['vertical', 'horizontal']) {
-      for (const sheet of ['portrait', 'landscape']) {
-        const p = paper(id);
-        const { best } = G.solveFill({ paper: p, margin: 5, orientation, sheet, style: 'auto' });
-        assert.ok(best, `${id} ${orientation} ${sheet}`);
-        const [aw, ah] = sheet === 'landscape' ? [p.h - 10, p.w - 10] : [p.w - 10, p.h - 10];
-        // Whole-millimetre envelope sizes leave at most a few mm unused.
-        assert.ok(best.size.w <= aw + 1e-9 && aw - best.size.w < 3, `${id} ${orientation} ${sheet} width`);
-        assert.ok(best.size.h <= ah + 1e-9 && ah - best.size.h < 3, `${id} ${orientation} ${sheet} height`);
-        assert.equal(best.rotated, sheet === 'landscape');
-        const { A, B } = G.openingDims(orientation, best.W, best.L);
-        assert.ok(orientation === 'vertical' ? B >= A : A >= B, 'face keeps its orientation');
-      }
+test('紙張方向 forces the sheet upright or sideways', () => {
+  const auto = solve('A4', 'vertical');
+  assert.equal(auto.best.rotated, true); // 130×169 needs the sheet sideways
+  const up = solve('A4', 'vertical', { sheet: 'portrait' }).best;
+  assert.equal(up.rotated, false);
+  assert.deepEqual([up.W, up.L], [92, 235]);
+  const side = solve('A4', 'vertical', { sheet: 'landscape' }).best;
+  assert.equal(side.rotated, true);
+  assert.deepEqual([side.W, side.L], [auto.best.W, auto.best.L]);
+  for (const o of ['vertical', 'horizontal']) {
+    for (const sheet of ['portrait', 'landscape']) {
+      const { best } = solve('A3', o, { sheet });
+      assert.equal(best.rotated, sheet === 'landscape', `${o} ${sheet}`);
+      for (const c of Object.values(solve('A3', o, { sheet }).perStyle)) if (c) assert.equal(c.rotated, sheet === 'landscape');
     }
   }
+  const fixed = G.fitFixed({ paper: paper('A4'), margin: 5, orientation: 'vertical', style: 'auto', sheet: 'landscape' }, 92, 235);
+  assert.equal(fixed, null); // 92×235 only fits with the sheet upright
 });
