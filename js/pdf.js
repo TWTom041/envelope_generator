@@ -70,6 +70,7 @@
 
   function contentOps(ops, font, out) {
     for (const op of ops) {
+      if (op.screenOnly) continue; // preview-only guides are never printed
       if (op.t === 'group') {
         out.push('q', op.m.map(num).join(' ') + ' cm');
         contentOps(op.children, font, out);

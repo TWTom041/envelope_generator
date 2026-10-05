@@ -147,14 +147,22 @@
           <label><input type="checkbox" data-key="options.showZipBoxes"> 郵遞區號格</label>
           <label><input type="checkbox" data-key="options.showStamp"> 郵票位置框</label>
         </div>
-        <div class="font-row">
-          <span>字型：<b id="fontName">載入中…</b></span>
-          <label class="button small">上傳字型
-            <input type="file" id="fontFile" accept=".ttf,.otf,.woff,font/ttf,font/otf,font/woff" hidden>
+        <div class="row">
+          <label class="wide">字型
+            <select data-key="fontChoice" id="fontChoice"></select>
           </label>
-          <button type="button" class="link" id="fontReset" hidden>改回預設</button>
         </div>
-        <p class="hint">可上傳 .ttf / .otf / .woff，例如 Windows 的標楷體（kaiu.ttf）。文字會轉成向量輪廓輸出，PDF 不需內嵌字型。</p>
+        <div class="row" id="fallbackRow">
+          <label class="wide">缺字時以此字型補字（含 Ext-B 罕用字）
+            <select data-key="fallbackFamily" id="fallbackFamily"></select>
+          </label>
+        </div>
+        <div class="font-row">
+          <label class="button small">上傳字型
+            <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" hidden>
+          </label>
+        </div>
+        <p class="hint">全字庫字型分塊下載，只載入用到的字（含 Ext-B 罕用字，如 𡘙、𪚥）。也可上傳 .ttf / .otf / .woff / .woff2，例如標楷體 kaiu.ttf。文字會轉成向量輪廓輸出，PDF 不需內嵌字型。</p>
         <button type="button" class="link" id="resetAll">清除所有欄位，恢復範例</button>
       </fieldset>
     </form>
@@ -177,7 +185,7 @@
         <summary>製作方式與規格說明</summary>
         <ol>
           <li>以 100%（實際大小）列印，<b>不要</b>勾選「縮放至頁面大小」。</li>
-          <li>沿<b>實線</b>剪下，沿<b>虛線</b>向內摺出摺痕。</li>
+          <li>沿<b>實線</b>剪下，沿淺灰色<b>虛線</b>摺出摺痕（摺線刻意印得很淡；預覽中的「封口」「背面」等說明不會印出）。</li>
           <li>依結構黏合：灰底為塗膠處。側邊黏合式先摺黏側條，再摺底翼；四翼式先摺兩側翼，再把底翼摺上黏在側翼上；口袋式把背面摺上，黏兩側。</li>
           <li>裝入信件後摺下封口並黏貼。</li>
         </ol>
@@ -213,6 +221,7 @@
   <script src="js/compose.js"></script>
   <script src="js/render.js"></script>
   <script src="js/pdf.js"></script>
+  <script src="fonts/tw/manifest.js"></script>
   <script src="js/fonts.js"></script>
   <script src="js/app.js"></script>
 </body>

@@ -84,7 +84,7 @@
   /** Flap sizes for a construction style. Kept proportional with sane limits. */
   function flapSpec(style, A, B) {
     const short = Math.min(A, B);
-    const closing = clamp(0.35 * short, 25, 50); // 封口翼
+    const closing = clamp(0.22 * short, 18, 28); // 封口翼
     if (style === 'side') {
       const g = Math.min(15, A * 0.2);
       return { ft: closing, fb: clamp(0.1 * B, 15, 25), g, gi: Math.min(g, 8) };
@@ -96,7 +96,8 @@
     if (style === 'fourflap') {
       const s = clamp(0.25 * short, 15, 40);
       const ov = clamp(0.1 * B, 10, 20); // overlap of top and bottom flap on the back
-      return { s, si: Math.min(s, 0.2 * B), fb: 0.62 * B, ft: 0.38 * B + ov };
+      const ft = clamp(0.3 * B, 20, 32); // short closing flap; the bottom flap covers the rest
+      return { s, si: Math.min(s, 0.2 * B), fb: B - ft + ov, ft };
     }
     throw new Error('unknown style ' + style);
   }
@@ -142,7 +143,9 @@
 
   /**
    * Full dieline geometry in its own coordinate system (origin = top-left of bbox).
-   * Returns { w, h, front:{x,y,w,h}, back?, cut:[cmds], folds:[[x1,y1,x2,y2]], glue:[cmds], labels:[...] }
+   * Returns { w, h, front:{x,y,w,h}, back?, cut:[cmds], folds:[[x1,y1,x2,y2]], glue:[cmds], labels:[...] }.
+   * Labels marked screenOnly end up on the outside of the finished envelope, so
+   * they are shown in the on-screen preview but never printed.
    */
   function buildDieline(style, A, B) {
     const f = flapSpec(style, A, B);
@@ -162,7 +165,7 @@
       const y0 = ft;
       const x1 = x0 + A;
       const y1 = y0 + B;
-      const ti = clamp(A * 0.12, 6, 25); // closing flap taper
+      const ti = Math.min(clamp(A * 0.12, 6, 25), ft); // closing flap taper
       const bi = s * 0.5; // bottom flap taper (< s so it rests on the side flaps)
       w = A + 2 * s;
       h = ft + B + fb;
@@ -192,8 +195,8 @@
         labels.push({ x: x0 - s + 2 + gw / 2, y: (gy0 + gy1) / 2, text: '塗膠', vertical: true });
         labels.push({ x: x1 + bi + 1 + gw / 2, y: (gy0 + gy1) / 2, text: '塗膠', vertical: true });
       }
-      labels.push({ x: x0 + A / 2, y: y0 - ft / 2, text: '封口', vertical: false });
-      labels.push({ x: x0 + A / 2, y: y1 + fb / 2, text: '底翼（摺至背面黏於側翼）', vertical: false });
+      labels.push({ x: x0 + A / 2, y: y0 - ft / 2, text: '封口', vertical: false, screenOnly: true });
+      labels.push({ x: x0 + A / 2, y: y1 + fb / 2, text: '底翼（摺至背面黏於側翼）', vertical: false, screenOnly: true });
     } else if (style === 'side') {
       const { ft, fb, g, gi } = f;
       const x0 = 0;
@@ -202,7 +205,7 @@
       const x2 = 2 * A;
       const x3 = 2 * A + g;
       const y1 = y0 + B;
-      const ti = clamp(A * 0.12, 6, 25);
+      const ti = Math.min(clamp(A * 0.12, 6, 25), ft);
       const bi = Math.min(8, fb * 0.6);
       w = x3;
       h = ft + B + fb;
@@ -230,8 +233,8 @@
       const gh = fb - 4;
       glue.push(rect(x1 + bi + 2, y1 - fb + 2, A - 2 * bi - 4, gh));
       labels.push({ x: x1 + A / 2, y: y1 - fb / 2, text: '塗膠（底翼黏貼處）', vertical: false });
-      labels.push({ x: x0 + A / 2, y: y0 - ft / 2, text: '封口', vertical: false });
-      labels.push({ x: x1 + A / 2, y: y0 + B / 2, text: '背面', vertical: !(A > B) });
+      labels.push({ x: x0 + A / 2, y: y0 - ft / 2, text: '封口', vertical: false, screenOnly: true });
+      labels.push({ x: x1 + A / 2, y: y0 + B / 2, text: '背面', vertical: !(A > B), screenOnly: true });
     } else if (style === 'pocket') {
       const { ft, g, gi } = f;
       const x0 = g;
@@ -239,7 +242,7 @@
       const y0 = ft;
       const y1 = ft + B;
       const y2 = ft + 2 * B;
-      const ti = clamp(A * 0.12, 6, 25);
+      const ti = Math.min(clamp(A * 0.12, 6, 25), ft);
       w = A + 2 * g;
       h = ft + 2 * B;
       front = { x: x0, y: y0, w: A, h: B };
@@ -263,8 +266,8 @@
       glue.push(rect(x1 + 1.5, y1 + gi + 1, g - 3, B - 2 * gi - 2));
       labels.push({ x: x0 - g / 2, y: y1 + B / 2, text: '塗膠', vertical: true });
       labels.push({ x: x1 + g / 2, y: y1 + B / 2, text: '塗膠', vertical: true });
-      labels.push({ x: x0 + A / 2, y: y0 - ft / 2, text: '封口', vertical: false });
-      labels.push({ x: x0 + A / 2, y: y1 + B / 2, text: '背面', vertical: !(A > B) });
+      labels.push({ x: x0 + A / 2, y: y0 - ft / 2, text: '封口', vertical: false, screenOnly: true });
+      labels.push({ x: x0 + A / 2, y: y1 + B / 2, text: '背面', vertical: !(A > B), screenOnly: true });
     } else {
       throw new Error('unknown style ' + style);
     }

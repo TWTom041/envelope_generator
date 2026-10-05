@@ -22,8 +22,11 @@
 - **郵件種類**：平信、限時（限時專送）、掛號、限時掛號、掛號附回執、快捷、印刷物、航空或自訂字樣，並可加附註（例如「請勿折疊」）。
 - **稱謂、啟封詞、緘封詞**：內建建議清單與用法提示，例如 鈞啟、台啟、道啟、親啟、緘、寄。
 - **直書數字**：可轉國字（122 號 → 一二二號、5-1 號 → 五之一號、3F → 三樓）、縱中橫，或直立數字。
-- **輸出**：文字轉成向量輪廓，PDF 不需內嵌字型，任何閱讀器、印表機都能正確顯示。預覽、列印與 PDF 完全一致。
-- **字型**：預設使用隨附的「霞鶩文楷 TC」，也可上傳自己的 .ttf／.otf／.woff，例如標楷體 kaiu.ttf。
+- **輸出**：文字轉成向量輪廓，PDF 不需內嵌字型，任何閱讀器、印表機都能正確顯示。列印與 PDF 只含裁切線、極淡的摺線與信封內容；「封口」「背面」等說明只出現在畫面預覽。
+- **字型**：
+  - 全字庫正楷體（預設）、全字庫正宋體：含 Ext-B 罕用字，切成小分塊（`fonts/tw/`），先載入常用字分塊（約 2 MB），其餘字用到時才下載。
+  - 霞鶩文楷 TC：缺字時自動以全字庫補字。
+  - 也可上傳自己的 .ttf／.otf／.woff／.woff2，例如標楷體 kaiu.ttf。
 
 ## 使用方式
 
@@ -58,13 +61,23 @@ npm test   # node --test，無任何相依套件
 | `js/compose.js` | 組合紙張、展開圖與正面內容 |
 | `js/render.js` | 輸出 SVG（字型轉輪廓） |
 | `js/pdf.js` | 極簡向量 PDF 產生器 |
-| `js/fonts.js`、`js/app.js` | 字型載入與網頁介面 |
+| `js/fonts.js`、`js/app.js` | 字型載入（含全字庫分塊、WOFF2 解碼）與網頁介面 |
+| `tools/build_tw_fonts.py` | 把全字庫字型切成分塊並產生 `fonts/tw/manifest.js` |
+
+重新產生全字庫分塊：
+
+```bash
+pip install fonttools brotli
+python3 tools/build_tw_fonts.py TW-Kai-98_1.woff2 TW-Kai-Ext-B-98_1.woff2 TW-Sung-98_1.woff2 TW-Sung-Ext-B-98_1.woff2
+```
 
 ## 授權
 
 - 程式碼：MIT（見 `LICENSE`）
 - 字型：霞鶩文楷 TC（LXGW WenKai TC），SIL Open Font License 1.1（見 `fonts/OFL.txt`）
+- 字型：全字庫正楷體、全字庫正宋體（含 Ext-B），© 2022 數位發展部，政府資料開放授權條款第 1 版或 SIL OFL 1.1 擇一；本專案依 OFL 1.1 散布分塊版本（見 `fonts/TW-FONTS-LICENSE.txt`）
 - opentype.js：MIT（見 `vendor/opentype.LICENSE`）
+- woff2 解碼器（wawoff2）：MIT（見 `vendor/woff2-decompress.LICENSE`）
 
 ---
 

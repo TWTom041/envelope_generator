@@ -39,6 +39,8 @@
       phone: '',
     },
     options: { numerals: 'chinese', showFrame: true, showZipBoxes: true, showStamp: true },
+    fontChoice: 'kai', // 'kai' | 'sung' (全字庫) | 'wenkai' | 'upload'
+    fallbackFamily: 'kai', // 全字庫 family filling characters 霞鶩文楷/uploaded fonts lack
   };
 
   const SALUTATION_HINTS = {
@@ -59,7 +61,12 @@
   const clone = (o) => JSON.parse(JSON.stringify(o));
 
   let state = loadState();
-  let fontInfo = null; // { font, name, source }
+  let wenkaiFont = null;
+  let uploaded = null; // { font, name }
+  let font = null; // current text.fontStack, or null while nothing is loaded
+  let fontKey = '';
+  let fontsBusy = 0; // font downloads in flight; outputs wait for them
+  const fontFailures = new Set(); // downloads that failed this session (not retried)
   let metrics = T.approxMetrics;
   let sheet = null;
   let pending = false;
@@ -114,6 +121,8 @@
     fillSelect($('#contentsId'), G.CONTENTS, 'id', 'label');
     fillSelect($('#style'), Object.values(G.STYLES), 'id', 'label');
     fillSelect($('#mailType'), C.MAIL_TYPES, 'id', 'label');
+    fillSelect($('#fontChoice'), EG.fonts.twFamilies().concat([{ id: 'wenkai', label: EG.fonts.WENKAI_NAME }]), 'id', 'label');
+    fillSelect($('#fallbackFamily'), EG.fonts.twFamilies().concat([{ id: 'none', label: '不補字' }]), 'id', 'label');
     writeForm();
     $('#form').addEventListener('input', onInput);
     $('#form').addEventListener('change', onInput);
@@ -151,6 +160,7 @@
     $('#customSizeRow').hidden = state.sizeMode !== 'custom';
     $('#autoRow').hidden = state.sizeMode !== 'auto';
     $('#customMarkLabel').hidden = state.mailType !== 'custom';
+    updateFontUi();
     const hint = SALUTATION_HINTS[String(state.recipient.salutation || '').trim()];
     $('#salutationHint').textContent = hint ? `「${state.recipient.salutation.trim()}」適用：${hint}` : '';
   }
@@ -165,10 +175,80 @@
     });
   }
 
+  const isTw = (id) => !!(EG.twFonts && EG.twFonts[id]);
+
+  /** Rebuild the font stack when the chosen font or the loaded chunks change. */
+  function refreshFont() {
+    const choice = state.fontChoice;
+    let fonts;
+    if (isTw(choice)) {
+      fonts = EG.fonts.familyFonts(choice);
+    } else {
+      const base = choice === 'upload' && uploaded ? uploaded.font : wenkaiFont;
+      const fb = state.fallbackFamily;
+      fonts = base ? [base].concat(isTw(fb) ? EG.fonts.familyFonts(fb) : []) : [];
+    }
+    const key = choice + '|' + state.fallbackFamily + '|' + fonts.length + '|' + (uploaded ? uploaded.name : '');
+    if (key === fontKey) return;
+    fontKey = key;
+    font = fonts.length ? T.fontStack(fonts[0], fonts.slice(1)) : null;
+    metrics = font ? T.fontMetrics(font) : T.approxMetrics;
+  }
+
+  function track(key, promise, message) {
+    fontsBusy++;
+    setStatus(message);
+    promise
+      .then(() => setStatus(''))
+      .catch((e) => {
+        console.error(e);
+        key.split(',').forEach((k) => fontFailures.add(k));
+        setStatus('字型載入失敗：' + e.message + '（可按「上傳字型」改用電腦中的字型）', true);
+      })
+      .finally(() => {
+        fontsBusy--;
+        scheduleRender();
+      });
+  }
+
+  function glyphChars(ops, out) {
+    for (const op of ops) {
+      if (op.t === 'group') glyphChars(op.children, out);
+      else if (op.t === 'glyphs') for (const it of op.items) out.add(it.ch);
+    }
+    return out;
+  }
+
+  /** Download whatever the current sheet needs: the base font, then chunks for missing characters. */
+  function ensureFonts() {
+    if (fontsBusy) return;
+    const choice = state.fontChoice;
+    if (choice === 'wenkai' && !wenkaiFont) {
+      if (fontFailures.has('wenkai')) return;
+      track(
+        'wenkai',
+        EG.fonts.loadWenKai().then((f) => (wenkaiFont = f)),
+        '正在載入霞鶩文楷（約 13 MB，第一次需要一點時間）…'
+      );
+      return;
+    }
+    if (isTw(choice) && !EG.fonts.hasCommon(choice)) {
+      const common = EG.twFonts[choice].common;
+      if (!fontFailures.has(common)) track(common, EG.fonts.loadChunk(common), '正在載入' + EG.twFonts[choice].label + '…');
+      return;
+    }
+    if (!font || !sheet || sheet.error) return;
+    const missing = Array.from(glyphChars(sheet.ops, new Set())).filter((ch) => !metrics.has(ch));
+    const family = isTw(choice) ? choice : state.fallbackFamily;
+    const files = (isTw(family) ? EG.fonts.filesFor(family, missing) : []).filter((f) => !fontFailures.has(f));
+    if (files.length) track(files.join(','), Promise.all(files.map(EG.fonts.loadChunk)), '載入缺字…');
+  }
+
   function render() {
+    refreshFont();
     sheet = C.buildSheet(state, metrics);
-    const font = fontInfo && fontInfo.font;
-    const ready = !sheet.error && !!font;
+    ensureFonts();
+    const ready = !sheet.error && !!font && !fontsBusy;
     $('#btnPdf').disabled = !ready;
     $('#btnPrint').disabled = !ready;
     $('#btnSvg').disabled = !ready;
@@ -189,7 +269,7 @@
       pv.innerHTML = '';
       return;
     }
-    pv.innerHTML = EG.render.renderSVG(sheet, font, { showMargin: true });
+    pv.innerHTML = EG.render.renderSVG(sheet, font, { showMargin: true, screen: true });
   }
 
   function renderSummary() {
@@ -267,11 +347,11 @@
   }
 
   async function onPdf() {
-    if (!sheet || sheet.error || !fontInfo) return;
+    if (!sheet || sheet.error || !font || fontsBusy) return;
     setStatus('產生 PDF 中…');
     try {
       const title = `信封 ${sheet.info.W}×${sheet.info.L} mm`;
-      const bytes = await EG.pdf.buildPDF(sheet, fontInfo.font, { title });
+      const bytes = await EG.pdf.buildPDF(sheet, font, { title });
       download(new Blob([bytes], { type: 'application/pdf' }), fileBase() + '.pdf');
       setStatus('PDF 已下載。請以 100% 實際大小列印。');
     } catch (e) {
@@ -281,16 +361,16 @@
   }
 
   function onSvg() {
-    if (!sheet || sheet.error || !fontInfo) return;
-    const svg = EG.render.renderSVG(sheet, fontInfo.font, {});
+    if (!sheet || sheet.error || !font || fontsBusy) return;
+    const svg = EG.render.renderSVG(sheet, font, {});
     download(new Blob([svg], { type: 'image/svg+xml' }), fileBase() + '.svg');
   }
 
   function onPrint() {
-    if (!sheet || sheet.error || !fontInfo) return;
+    if (!sheet || sheet.error || !font || fontsBusy) return;
     const { w, h } = sheet.paper;
     $('#printPageStyle').textContent = `@page { size: ${w}mm ${h}mm; margin: 0; }`;
-    $('#printArea').innerHTML = EG.render.renderSVG(sheet, fontInfo.font, {});
+    $('#printArea').innerHTML = EG.render.renderSVG(sheet, font, {});
     window.print();
   }
 
@@ -301,25 +381,20 @@
   }
 
   // ---- fonts -------------------------------------------------------------------------
-  function useFont(info) {
-    fontInfo = info;
-    metrics = T.fontMetrics(info.font);
-    $('#fontName').textContent = info.name;
-    $('#fontReset').hidden = info.name === EG.fonts.DEFAULT_FONT_NAME;
-    scheduleRender();
-  }
-
-  async function loadDefaultFont() {
-    $('#fontName').textContent = '載入中…';
-    setStatus('正在載入字型（約 13 MB，第一次需要一點時間）…');
-    try {
-      useFont(await EG.fonts.loadDefault());
-      setStatus('');
-    } catch (e) {
-      console.error(e);
-      $('#fontName').textContent = '未載入';
-      setStatus('預設字型載入失敗，請按「上傳字型」選擇電腦中的中文字型（.ttf / .otf）。', true);
+  function updateFontUi() {
+    const sel = $('#fontChoice');
+    let opt = sel.querySelector('option[value="upload"]');
+    if (uploaded) {
+      if (!opt) {
+        opt = document.createElement('option');
+        opt.value = 'upload';
+        sel.appendChild(opt);
+      }
+      opt.textContent = '上傳：' + uploaded.name;
     }
+    if (state.fontChoice === 'upload' && !uploaded) state.fontChoice = 'kai';
+    sel.value = state.fontChoice;
+    $('#fallbackRow').hidden = isTw(state.fontChoice);
   }
 
   async function onFontFile(e) {
@@ -327,8 +402,12 @@
     if (!file) return;
     setStatus('讀取字型中…');
     try {
-      useFont(await EG.fonts.loadFile(file));
+      uploaded = await EG.fonts.loadFile(file);
+      state.fontChoice = 'upload';
+      updateFontUi();
+      saveState();
       setStatus('已改用上傳的字型。');
+      scheduleRender();
     } catch (err) {
       setStatus('字型讀取失敗：' + err.message, true);
     }
@@ -342,7 +421,6 @@
     $('#btnSvg').addEventListener('click', onSvg);
     $('#btnPrint').addEventListener('click', onPrint);
     $('#fontFile').addEventListener('change', onFontFile);
-    $('#fontReset').addEventListener('click', loadDefaultFont);
     $('#resetAll').addEventListener('click', () => {
       state = clone(DEFAULT_STATE);
       saveState();
@@ -361,7 +439,6 @@
       $('#printArea').innerHTML = '';
     });
     render();
-    loadDefaultFont();
   }
 
   init();

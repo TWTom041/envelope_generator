@@ -84,3 +84,30 @@ test('PDF is well formed with a valid xref table', async () => {
     assert.ok(s.slice(off).startsWith(`${i + 1} 0 obj`), `object ${i + 1} offset`);
   });
 });
+
+test('preview-only labels (封口, 背面) are left out of print and PDF output', async () => {
+  const sheet = C.buildSheet(base, M);
+  const hidden = [];
+  (function walk(ops) {
+    for (const op of ops) {
+      if (op.t === 'group') walk(op.children);
+      else if (op.screenOnly) hidden.push(op.items.map((i) => i.ch).join(''));
+    }
+  })(sheet.ops);
+  assert.ok(hidden.join('').includes('封口'));
+  assert.ok(hidden.join('').includes('背面'));
+  const count = (svg) => (svg.match(/<path /g) || []).length;
+  assert.equal(count(R.renderSVG(sheet, font, { screen: true })), count(R.renderSVG(sheet, font, {})) + 1);
+  const withLabels = Object.assign({}, sheet, { ops: JSON.parse(JSON.stringify(sheet.ops).replace(/"screenOnly":true/g, '"x":1')) });
+  const a = await P.buildPDF(sheet, font, {});
+  const b = await P.buildPDF(withLabels, font, {});
+  assert.ok(a.length < b.length);
+});
+
+test('fold lines are faint and thin', () => {
+  assert.equal(C.COLORS.fold, '#d4d4d4');
+  const sheet = C.buildSheet(base, M);
+  const folds = sheet.ops[0].children.filter((o) => o.t === 'path' && o.dash);
+  assert.ok(folds.length >= 3);
+  assert.ok(folds.every((o) => o.stroke === C.COLORS.fold && o.lw <= 0.15));
+});

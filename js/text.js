@@ -33,25 +33,43 @@
     },
   };
 
-  /** Metrics backed by an opentype.js Font. */
-  function fontMetrics(font) {
+  /**
+   * A primary font followed by fallback fonts (e.g. 全字庫 Ext-B chunks for rare
+   * characters). Anywhere a font is accepted, a stack works too.
+   */
+  function fontStack(primary, fallbacks) {
+    return { stack: true, fonts: [primary].concat(fallbacks || []) };
+  }
+
+  /** First font in the stack that has the character; .notdef of the primary otherwise. */
+  function resolveGlyph(fontLike, ch) {
+    const fonts = fontLike.stack ? fontLike.fonts : [fontLike];
+    for (const font of fonts) {
+      const glyph = font.charToGlyph(ch);
+      if (glyph && glyph.index !== 0) return { glyph, font };
+    }
+    return { glyph: fonts[0].charToGlyph(ch), font: fonts[0] };
+  }
+
+  /** Metrics backed by an opentype.js Font or a font stack. */
+  function fontMetrics(fontLike) {
     const cache = new Map();
-    const glyph = (ch) => {
-      let g = cache.get(ch);
-      if (!g) {
-        g = font.charToGlyph(ch);
-        cache.set(ch, g);
+    const lookup = (ch) => {
+      let r = cache.get(ch);
+      if (!r) {
+        r = resolveGlyph(fontLike, ch);
+        cache.set(ch, r);
       }
-      return g;
+      return r;
     };
     return {
-      font,
+      font: fontLike,
       advance(ch) {
-        const g = glyph(ch);
-        return (g.advanceWidth || font.unitsPerEm) / font.unitsPerEm;
+        const { glyph, font } = lookup(ch);
+        return (glyph.advanceWidth || font.unitsPerEm) / font.unitsPerEm;
       },
       has(ch) {
-        return /\s/.test(ch) || glyph(ch).index !== 0;
+        return /\s/.test(ch) || lookup(ch).glyph.index !== 0;
       },
     };
   }
@@ -284,6 +302,8 @@
   const api = {
     EM_TOP,
     approxMetrics,
+    fontStack,
+    resolveGlyph,
     fontMetrics,
     isWide,
     normalizeAlnum,
