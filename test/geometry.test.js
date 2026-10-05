@@ -30,7 +30,7 @@ test('solver result is standard and its dieline fits the usable area', () => {
 
 test('solver finds the largest size: no 1 mm larger envelope fits', () => {
   const { best } = solve('A4', 'vertical');
-  assert.deepEqual([best.W, best.L], [92, 235]);
+  assert.deepEqual([best.W, best.L], [130, 169]);
   for (const style of G.STYLE_IDS) {
     for (const rotated of [false, true]) {
       for (const [W, L] of [
@@ -59,7 +59,9 @@ test('closing flap stays short', () => {
       [235, 95],
       [165, 235],
     ]) {
-      assert.ok(G.flapSpec(style, A, B).ft <= 32, `${style} ${A}x${B}`);
+      const f = G.flapSpec(style, A, B);
+      assert.ok(f.ft <= 22, `${style} ${A}x${B}`);
+      if (style === 'side') assert.ok(f.fb <= 17, `side bottom flap ${A}x${B}`);
     }
   }
 });

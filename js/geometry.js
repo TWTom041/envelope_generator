@@ -84,10 +84,10 @@
   /** Flap sizes for a construction style. Kept proportional with sane limits. */
   function flapSpec(style, A, B) {
     const short = Math.min(A, B);
-    const closing = clamp(0.22 * short, 18, 28); // 封口翼
+    const closing = clamp(0.15 * short, 12, 19); // 封口翼
     if (style === 'side') {
       const g = Math.min(15, A * 0.2);
-      return { ft: closing, fb: clamp(0.1 * B, 15, 25), g, gi: Math.min(g, 8) };
+      return { ft: closing, fb: clamp(0.067 * B, 10, 17), g, gi: Math.min(g, 8) };
     }
     if (style === 'pocket') {
       const g = Math.min(15, A * 0.2);
@@ -96,7 +96,7 @@
     if (style === 'fourflap') {
       const s = clamp(0.25 * short, 15, 40);
       const ov = clamp(0.1 * B, 10, 20); // overlap of top and bottom flap on the back
-      const ft = clamp(0.3 * B, 20, 32); // short closing flap; the bottom flap covers the rest
+      const ft = clamp(0.2 * B, 14, 22); // short closing flap; the bottom flap covers the rest
       return { s, si: Math.min(s, 0.2 * B), fb: B - ft + ov, ft };
     }
     throw new Error('unknown style ' + style);
@@ -172,8 +172,8 @@
       front = { x: x0, y: y0, w: A, h: B };
       cut = roundedPolygon([
         [x0, y0],
-        [x0 + ti, y0 - ft, R * 2],
-        [x1 - ti, y0 - ft, R * 2],
+        [x0 + ti, y0 - ft, Math.min(R * 2, ft * 0.4)],
+        [x1 - ti, y0 - ft, Math.min(R * 2, ft * 0.4)],
         [x1, y0],
         [x1 + s, y0 + si, R],
         [x1 + s, y1 - si, R],
@@ -213,8 +213,8 @@
       back = { x: x1, y: y0, w: A, h: B };
       cut = roundedPolygon([
         [x0, y0],
-        [x0 + ti, y0 - ft, R * 2],
-        [x1 - ti, y0 - ft, R * 2],
+        [x0 + ti, y0 - ft, Math.min(R * 2, ft * 0.4)],
+        [x1 - ti, y0 - ft, Math.min(R * 2, ft * 0.4)],
         [x1, y0],
         [x2, y0],
         [x3, y0 + gi, 2],
@@ -249,8 +249,8 @@
       back = { x: x0, y: y1, w: A, h: B, flipped: true };
       cut = roundedPolygon([
         [x0, y0],
-        [x0 + ti, y0 - ft, R * 2],
-        [x1 - ti, y0 - ft, R * 2],
+        [x0 + ti, y0 - ft, Math.min(R * 2, ft * 0.4)],
+        [x1 - ti, y0 - ft, Math.min(R * 2, ft * 0.4)],
         [x1, y0],
         [x1, y1],
         [x1 + g, y1 + gi, 2],
