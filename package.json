@@ -1,0 +1,11 @@
+{
+  "name": "envelope-generator",
+  "version": "1.0.0",
+  "description": "台灣信封產生器：產生符合中華郵政標準的信封展開圖並輸出 PDF",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node --test test/*.test.js"
+  }
+}
