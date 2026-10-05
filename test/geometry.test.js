@@ -103,3 +103,22 @@ test('buildDieline outline stays inside its bounding box', () => {
     }
   }
 });
+
+test('填滿紙張 fills the usable sheet in the chosen direction', () => {
+  for (const id of ['A4', 'A3', 'Letter']) {
+    for (const orientation of ['vertical', 'horizontal']) {
+      for (const sheet of ['portrait', 'landscape']) {
+        const p = paper(id);
+        const { best } = G.solveFill({ paper: p, margin: 5, orientation, sheet, style: 'auto' });
+        assert.ok(best, `${id} ${orientation} ${sheet}`);
+        const [aw, ah] = sheet === 'landscape' ? [p.h - 10, p.w - 10] : [p.w - 10, p.h - 10];
+        // Whole-millimetre envelope sizes leave at most a few mm unused.
+        assert.ok(best.size.w <= aw + 1e-9 && aw - best.size.w < 3, `${id} ${orientation} ${sheet} width`);
+        assert.ok(best.size.h <= ah + 1e-9 && ah - best.size.h < 3, `${id} ${orientation} ${sheet} height`);
+        assert.equal(best.rotated, sheet === 'landscape');
+        const { A, B } = G.openingDims(orientation, best.W, best.L);
+        assert.ok(orientation === 'vertical' ? B >= A : A >= B, 'face keeps its orientation');
+      }
+    }
+  }
+});
