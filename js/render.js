@@ -6,13 +6,15 @@
 (function (root) {
   'use strict';
   const EG = root.EnvGen || (root.EnvGen = {});
+  const T = EG.text || (typeof require === 'function' ? require('./text.js') : null);
 
   const FALLBACK_FONTS = "'LXGW WenKai TC','BiauKai','DFKai-SB','標楷體','Kaiti TC','Noto Serif TC','PMingLiU',serif";
 
   const outlineCache = new WeakMap();
 
-  /** Glyph outline in font units, y-down, relative to the baseline origin. */
-  function unitOutline(font, ch) {
+  /** Glyph outline in em units, y-down, relative to the baseline origin. */
+  function emOutline(fontLike, ch) {
+    const { glyph, font } = T.resolveGlyph(fontLike, ch);
     let cache = outlineCache.get(font);
     if (!cache) {
       cache = new Map();
@@ -20,16 +22,38 @@
     }
     let cmds = cache.get(ch);
     if (!cmds) {
-      const g = font.charToGlyph(ch);
-      cmds = g.index === 0 ? [] : g.getPath(0, 0, font.unitsPerEm).commands;
+      const dy = emTop(font) - T.EM_TOP;
+      cmds =
+        glyph.index === 0
+          ? []
+          : glyph.getPath(0, 0, 1).commands.map((c) => {
+              const o = Object.assign({}, c);
+              for (const k of ['y', 'y1', 'y2']) if (k in o) o[k] += dy;
+              return o;
+            });
       cache.set(ch, cmds);
     }
     return cmds;
   }
 
+  /*
+   * Top of the ideographic em box in em units. Layout assumes 0.88 (most CJK
+   * fonts); fonts with another split (全字庫: 820/−204 of 1024) are shifted so
+   * mixed fonts share the same em box.
+   */
+  function emTop(font) {
+    const os2 = font.tables && font.tables.os2;
+    if (!os2) return T.EM_TOP;
+    const asc = os2.sTypoAscender;
+    const desc = os2.sTypoDescender;
+    const upm = font.unitsPerEm;
+    if (!(asc > 0) || Math.abs(asc - desc - upm) > upm * 0.05) return T.EM_TOP;
+    return asc / upm;
+  }
+
   /** Absolute path commands for a positioned glyph item. */
   function glyphCommands(font, it) {
-    const k = it.size / font.unitsPerEm;
+    const k = it.size;
     const sx = it.sx || 1;
     let tf = (px, py) => [it.x + px * k * sx, it.y + py * k];
     if (it.rot) {
@@ -40,7 +64,7 @@
       };
     }
     const out = [];
-    for (const c of unitOutline(font, it.ch)) {
+    for (const c of emOutline(font, it.ch)) {
       if (c.type === 'M' || c.type === 'L') out.push([c.type, ...tf(c.x, c.y)]);
       else if (c.type === 'Q') out.push(['Q', ...tf(c.x1, c.y1), ...tf(c.x, c.y)]);
       else if (c.type === 'C') out.push(['C', ...tf(c.x1, c.y1), ...tf(c.x2, c.y2), ...tf(c.x, c.y)]);
@@ -64,11 +88,12 @@
     return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   }
 
-  function svgOps(ops, font, out) {
+  function svgOps(ops, font, out, screen) {
     for (const op of ops) {
+      if (op.screenOnly && !screen) continue;
       if (op.t === 'group') {
         out.push(`<g transform="matrix(${op.m.map(n).join(' ')})">`);
-        svgOps(op.children, font, out);
+        svgOps(op.children, font, out, screen);
         out.push('</g>');
       } else if (op.t === 'path') {
         const a = [`d="${pathData(op.d)}"`, `fill="${op.fill || 'none'}"`];
@@ -96,7 +121,7 @@
     }
   }
 
-  /** Full-page SVG string (viewBox in mm). */
+  /** Full-page SVG string (viewBox in mm). opts.screen adds preview-only guides. */
   function renderSVG(sheet, font, opts) {
     const o = opts || {};
     const { w, h } = sheet.paper;
@@ -111,7 +136,7 @@
         `<rect x="${n(m)}" y="${n(m)}" width="${n(w - 2 * m)}" height="${n(h - 2 * m)}" fill="none" stroke="#4a90d9" stroke-width="0.2" stroke-dasharray="1 1" opacity="0.6"/>`
       );
     }
-    svgOps(sheet.ops, font, out);
+    svgOps(sheet.ops, font, out, !!o.screen);
     out.push('</svg>');
     return out.join('');
   }

@@ -11,7 +11,7 @@
   const T = req('text', './text.js');
   const Lay = req('layout', './layout.js');
 
-  const COLORS = { cut: '#222222', fold: '#7a7a7a', glue: '#ededed', label: '#8c8c8c' };
+  const COLORS = { cut: '#222222', fold: '#d4d4d4', glue: '#ededed', label: '#8c8c8c' };
 
   // 郵件種類
   const MAIL_TYPES = [
@@ -88,10 +88,13 @@
     return { pick, solved };
   }
 
+  /** Label glyphs; screen-only labels go in a separate op that print/PDF skip. */
   function labelOps(labels, M) {
     const size = 2.6;
-    const items = [];
+    const printed = [];
+    const screen = [];
     for (const lb of labels) {
+      const items = lb.screenOnly ? screen : printed;
       if (lb.vertical) {
         const cells = T.verticalCells(lb.text, {}, M);
         const h = T.cellsHeight(cells, 0) * size;
@@ -101,7 +104,10 @@
         items.push(...T.placeHorizontal(lb.text, lb.x - w / 2, lb.y + size * 0.35, size, M));
       }
     }
-    return items.length ? [{ t: 'glyphs', items, fill: COLORS.label }] : [];
+    const ops = [];
+    if (printed.length) ops.push({ t: 'glyphs', items: printed, fill: COLORS.label });
+    if (screen.length) ops.push({ t: 'glyphs', items: screen, fill: COLORS.label, screenOnly: true });
+    return ops;
   }
 
   function applyMatrix(m, x, y) {
@@ -139,8 +145,8 @@
       t: 'path',
       d: [['M', x1, y1], ['L', x2, y2]],
       stroke: COLORS.fold,
-      lw: 0.25,
-      dash: [2, 1.2],
+      lw: 0.15,
+      dash: [1.5, 1.5],
     }));
     const children = [
       ...glueOps,

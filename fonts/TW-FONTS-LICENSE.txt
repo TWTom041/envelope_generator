@@ -1,0 +1,12 @@
+全字庫正楷體（TW-Kai）、全字庫正宋體（TW-Sung）及其 Ext-B 字型
+(c) 2022 Ministry of Digital Affairs（數位發展部）, Taiwan. Version 11109.01.
+Source: 全字庫 CNS11643 中文標準交換碼全字庫 https://www.cns11643.gov.tw/
+
+The original fonts state: "You can use any of the following terms as needed.
+ 1. Open Government Data License, version 1.0 (https://data.gov.tw/en/license)
+ 2. the SIL Open Font License, version 1.1 (https://scripts.sil.org/OFL)"
+
+This project redistributes them under the SIL Open Font License 1.1 (full text
+in OFL.txt), split into subsets by tools/build_tw_fonts.py with hinting and
+layout tables removed. The fonts in fonts/tw/ are derived from:
+  TW-Kai-98_1, TW-Kai-Ext-B-98_1, TW-Sung-98_1, TW-Sung-Ext-B-98_1

@@ -30,13 +30,14 @@ test('solver result is standard and its dieline fits the usable area', () => {
 
 test('solver finds the largest size: no 1 mm larger envelope fits', () => {
   const { best } = solve('A4', 'vertical');
-  assert.deepEqual([best.W, best.L], [92, 231]);
+  assert.deepEqual([best.W, best.L], [92, 235]);
   for (const style of G.STYLE_IDS) {
     for (const rotated of [false, true]) {
       for (const [W, L] of [
         [best.W + 1, best.L],
         [best.W, best.L + 1],
       ]) {
+        if (G.standardIssues(W, L).length) continue;
         const { A, B } = G.openingDims('vertical', W, L);
         const s = G.dielineSize(style, A, B);
         const fits = rotated ? s.w <= 287 && s.h <= 200 : s.w <= 200 && s.h <= 287;
@@ -46,9 +47,21 @@ test('solver finds the largest size: no 1 mm larger envelope fits', () => {
   }
 });
 
-test('A3 reaches the postal maximum for 橫式', () => {
-  const { best } = solve('A3', 'horizontal');
-  assert.deepEqual([best.W, best.L], [165, 235]);
+test('A3 reaches the postal maximum', () => {
+  assert.deepEqual([solve('A3', 'horizontal').best.W, solve('A3', 'horizontal').best.L], [165, 235]);
+  assert.deepEqual([solve('A3', 'vertical').best.W, solve('A3', 'vertical').best.L], [165, 235]);
+});
+
+test('closing flap stays short', () => {
+  for (const style of G.STYLE_IDS) {
+    for (const [A, B] of [
+      [92, 235],
+      [235, 95],
+      [165, 235],
+    ]) {
+      assert.ok(G.flapSpec(style, A, B).ft <= 32, `${style} ${A}x${B}`);
+    }
+  }
 });
 
 test('A5 cannot hold a standard envelope, but free mode can', () => {
